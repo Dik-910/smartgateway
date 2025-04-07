@@ -1,3 +1,6 @@
+CC:=gcc
+CFLAGS := -g -O0 -Wall
+
 log:=thirdparty/log/log.h thirdparty/log/log.c
 log_test: test/log_test.c $(log)
 	-gcc $^ -o $@ -Ithirdparty
@@ -5,9 +8,16 @@ log_test: test/log_test.c $(log)
 	-rm $@
 json:=thirdparty/cJSON/cJSON.h thirdparty/cJSON/cJSON.c
 json_test: test/json_test.c $(json) $(log)
-	-gcc $^ -o $@ -I thirdparty
+	-$(CC) $(CFLAGS) $^ -o $@ -I thirdparty
+#	-./$@
+#	-rm $@
+
+app_common:=app/app_common.h app/app_common.c
+app_common_test: test/app_common_test.c $(app_common) $(log)
+	-$(CC) $^ -o $@ -Iapp -Ithirdparty
 	-./$@
 	-rm $@
+
 
 
 # $^: 依赖列表
