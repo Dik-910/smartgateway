@@ -813,6 +813,9 @@ reboot重启系统
   sudo apt install openssh-server
   sudo systemctl start ssh
   sudo systemctl enable ssh
+
+  # 查看服务是否运行
+  sudo systemctl status ssh
   ```
 
 - windows中测试连接虚拟机
