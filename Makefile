@@ -28,3 +28,10 @@ app_message_test: test/app_message_test.c $(app_message) $(app_common) $(log) $(
 # $^: 依赖列表
 # $@: 目标名
 # -I: 给gcc配置包含的查看路径
+# -l: 指定用到的下载的库
+
+
+mqtt_test: test/mqtt_test.c
+	-$(CC) $^ -o $@ -lpaho-mqtt3c
+	-./$@
+	-rm $@
