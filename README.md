@@ -71,6 +71,7 @@ Makefile：自动化构建make配置
 
 $^: 代表依赖列表
 $@：目标名称
+-I: 指定include path
 ```
 
 
@@ -157,7 +158,6 @@ json数据解析和生成的c语言库
 - 打断点
 - 通过插件来debug运行
 - 进行调试操作
-
 ```
 
 ### 通用工具模块：包含一些多个模块需要的工具函数或宏定义
@@ -168,7 +168,6 @@ json数据解析和生成的c语言库
 - 测试：
   test/app_common_test.c
   配置Makefile并运行
-
 ```
 
 ### 消息模块
@@ -203,7 +202,6 @@ json数据解析和生成的c语言库
 	app_message_charsToJson: 字符数组格式转为json格式
 	app_message_jsonToChars：json格式转为字符数组格式
 - 测试
-
 ```
 
 ### MQTT协议
@@ -229,7 +227,6 @@ json数据解析和生成的c语言库
 		订阅主题  subscribe
 		发布主题  publishMessage
 		断开连接与销毁 disconnect / destroy
-
 ```
 
 ### MQTT客户端模块
@@ -238,10 +235,9 @@ json数据解析和生成的c语言库
 - 在app_mqtt.h中定义相关函数
 	app_mqtt_init()
 	app_mqtt_close()
-	app_mqtt_send()
-	app_mqtt_registerRecvCallback()
+	app_mqtt_send(char *json)
+	app_mqtt_registerRecvCallback(int callback(char *json))
 - 在app_mqtt.c中利用客户端库实现各个函数
-
 ```
 
 
@@ -264,7 +260,6 @@ json数据解析和生成的c语言库
 - 启动多个进程或线程执行
 	执行的先后顺序不是完全固定的，由内核调度执行，
 	执行过程中，可能会被暂停，切换到执行另一个进程或线程
-
 ```
 
 ### 编码控制线程
@@ -301,7 +296,6 @@ json数据解析和生成的c语言库
 	锁定（pthread_mutex_lock()）：获取锁，如果此时锁被占则阻塞，否则函数返回，向下执行
 	解锁（pthread_mutex_unlock()）：释放锁，获取锁而阻塞的线程就有机会获取到锁而向下执行
 	销毁（pthread_mutex_destroy()）：释放锁占用的所有内存和资源
-
 ```
 
 ### 消息队列
@@ -314,7 +308,6 @@ json数据解析和生成的c语言库
 	接收消息: mq_receive()
     关闭消息队列: mq_close()
     删除消息队列: mq_unlink()
-
 ```
 
 ### 线程池模块
@@ -334,7 +327,6 @@ json数据解析和生成的c语言库
 	app_pool_init()
 	app_pool_close()
 	app_pool_registerTask()
-
 ```
 
 ### 缓冲模块
@@ -400,7 +392,6 @@ json数据解析和生成的c语言库
 		在写缓冲区的数据前后需要进行加锁和解锁   加写锁 =》 不能同时有2个线程写
 		在切换缓冲区前后需要进行加锁和解锁       加写锁 =》 写入时，不能切换
 
-
 ```
 
 ### 系统调用IO
@@ -431,7 +422,6 @@ json数据解析和生成的c语言库
 	关闭标准输出和标准错误输出： close()
 	将标准输出重定向到特定正常日志文件: open()  1
 	将标准错误输出重定向到特定错误日志文件: open()  2
-
 ```
 
 ### 设备模块
@@ -486,7 +476,6 @@ json数据解析和生成的c语言库
         // 写数据前，对数据的处理函数，将字符数组消息处理成设备需要的格式
         int (*pre_write)(char *data, int len); 
     } Device;
-
 ```
 
 ### 蓝牙模块的preWrite与postRead
@@ -526,7 +515,6 @@ json数据解析和生成的c语言库
         	将数据从缓存中删除
         	返回字符数组的长度
 	遍历结束，删除缓存中已遍历的数据
-
 ```
 
 ### 串口模块
@@ -568,7 +556,6 @@ json数据解析和生成的c语言库
 	app_serial_setStopBits()：设置停止位
 	app_serial_setBlock(): 设置串口是否是阻塞模式
 	app_serial_setRaw(): 设置串口解析数据模式为原始模式：不解析特殊字符
-
 ```
 
 ### 蓝牙模块
@@ -606,7 +593,6 @@ json数据解析和生成的c语言库
 	app_bt_init() 初始化蓝牙
 	app_bt_postRead() 从蓝牙读取数据后处理函数
 	app_bt_preWrite() 写入蓝牙数据前处理函数
-
 ```
 
 
@@ -635,7 +621,6 @@ json数据解析和生成的c语言库
 	参数与环境： 程序参数和环境变量
 
 	内核：内核空间，系统内部使用，无法直接访问，需要通过系统调用访问
-
 ```
 
 ### 操作进程的相关语法
@@ -671,7 +656,6 @@ json数据解析和生成的c语言库
     WUNTRACED(2)：会等待目标进程执行完当前进程才向下执行，且能得到子进程的返回结果
 	0: 效果赞同于WUNTRACED， 一般直接写0
 
-
 ```
 
 ### 进程间通信之信号
@@ -686,7 +670,6 @@ json数据解析和生成的c语言库
 - 编码流程
 	注册特定信号的监听, 绑定回调函数
 	在监听回调中进行特定处理来响应信号
-
 ```
 
 ### 应用进程运行模块 
@@ -697,14 +680,12 @@ json数据解析和生成的c语言库
 初始化各个模块：线程池、mqtt客户端、设备、蓝牙/串口
 启动设备
 只要没有收到结束信号，一直不结束，收到结束信号释放资源
-
 ```
 
 ### main函数
 
 ```
 如果运行的参数是“app", 调用主应用运行函数启动应用
-
 ```
 
 ### 编码完善
@@ -713,7 +694,6 @@ json数据解析和生成的c语言库
 1. 当前时间值开始用的long, 值在板子上运行时为负数， 原因是板子是32位，long是4个字节，存储不了毫秒数 =》 使用long long
 2. 串口初始化属性时，需要先初始化其它属性刷新后，再指定为非阻塞模式才有效
 3. mqtt的协议从tcp改为ws
-
 ```
 
 
@@ -738,7 +718,6 @@ json数据解析和生成的c语言库
 	编译脚本Makefile, 修改IP为开发板的IP
 	执行交叉编译指令：cross-compile
 	查看烧录上的程序：ll /usr/bin/gateway
-
 ```
 
 ### 蓝牙接线测试
@@ -751,7 +730,6 @@ json数据解析和生成的c语言库
 修改网关程序中的mqtt的ip和协议/串口文件/蓝牙的NETID和MADDR
 重新编译烧录
 启动开发版上的程序
-
 ```
 
 ### OTA模块
@@ -774,7 +752,6 @@ ota_version模块
 	实现全流程的版本检查更新：ota_version_checkUpdate()
 	每隔一天检查一次：ota_version_checkUpdateDaily()
 	输出当前版本号：ota_version_printVersion()
-
 ```
 
 ### 守护进程模块
@@ -801,7 +778,6 @@ daemon_runner模块:
 		初始化所有子进程（app/ota）信息
 		每隔2秒检查每个子进程状态，如果没有运行则将其启动起来
 		结束前关闭所有子进程
-
 ```
 
 ### 开机自启动
@@ -819,6 +795,50 @@ daemon_runner模块:
 reboot重启系统
 查看网关进程：有3个，daemon/app/ota, 
 杀死app或ota后查看依然存在，杀死daemon,再查看app和ota都不在了
-
 ```
 
+
+
+### windows下VSCode远程连接Ubuntu虚拟机开发
+
+- windows中，安装vscode远程连接的插件
+
+  ```
+  插件名：Remote - SSH
+  ```
+
+- 虚拟机中安装并启动 SSH 服务
+
+  ```
+  sudo apt install openssh-server
+  sudo systemctl start ssh
+  sudo systemctl enable ssh
+  ```
+
+- windows中测试连接虚拟机
+
+  ```shell
+  # 打开powershell中，执行命令:
+  ssh 用户名@虚拟机ip
+  ```
+
+- windows中配置SSH
+
+  ```shell
+  # 导航到C:\Users\<YourUsername>\.ssh\config，添加如下配置（根据实际情况修改）
+  Host 虚拟机名
+      HostName 虚拟机IP
+      User 虚拟机用户名
+      Port 22
+  ```
+
+- #### windows中, VS Code 连接虚拟机
+
+  ```
+  - 打开 VS Code。
+  - 按 Ctrl+Shift+P 打开命令面板，输入并选择 "Remote-SSH: Connect to Host..."。
+  - 在弹出的列表中选择你刚刚配置的主机名（例如 atguigu）。
+  - 输入密码，连接上虚拟机
+  ```
+
+  
