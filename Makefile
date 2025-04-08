@@ -24,7 +24,6 @@ app_message_test: test/app_message_test.c $(app_message) $(app_common) $(log) $(
 	-./$@
 	-rm $@
 
-
 # $^: 依赖列表
 # $@: 目标名
 # -I: 给gcc配置包含的查看路径
@@ -33,5 +32,11 @@ app_message_test: test/app_message_test.c $(app_message) $(app_common) $(log) $(
 
 mqtt_test: test/mqtt_test.c
 	-$(CC) $^ -o $@ -lpaho-mqtt3c
+	-./$@
+	-rm $@
+
+app_mqtt:=app/app_mqtt.h app/app_mqtt.c
+app_mqtt_test: test/app_mqtt_test.c $(app_mqtt) $(log)
+	-$(CC) $^ -o $@ -Iapp -Ithirdparty -lpaho-mqtt3c
 	-./$@
 	-rm $@
