@@ -18,6 +18,11 @@ app_common_test: test/app_common_test.c $(app_common) $(log)
 	-./$@
 	-rm $@
 
+app_message:=app/app_message.h app/app_message.c
+app_message_test: test/app_message_test.c $(app_message) $(app_common) $(log) $(json)
+	-$(CC) $^ -o $@ -Iapp -Ithirdparty
+	-./$@
+	-rm $@
 
 
 # $^: 依赖列表
