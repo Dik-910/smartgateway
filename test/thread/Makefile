@@ -28,4 +28,9 @@ mutex_lock: 04_mutex_lock.c
 	-gcc $^ -o $@
 	-./$@
 	-rm $@
+
+mqueue: 05_mqueue.c
+	-gcc $^ -o $@
+	-./$@
+	-rm $@
 	
