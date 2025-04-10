@@ -5,7 +5,7 @@
 // 内部的子缓冲区
 typedef struct 
 {
-    char *ptr; // 指向缓冲区的指针
+    unsigned char *ptr; // 指向缓冲区的指针
     int total_size; // 缓冲区的大小
     int len; // 缓冲区中数据的长度
 } SubBuffer;

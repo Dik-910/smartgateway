@@ -129,6 +129,7 @@ int app_buffer_read(Buffer *buffer, char *data_buf, int buf_size)
 
     // 读取一份数据保存data_buf中： 先读长度，再读数据
     int data_len = r_buffer->ptr[0];
+    log_debug("---data_len=%d", data_len);
     // 判断data_buf是否足够大
     if (buf_size < data_len)
     {
