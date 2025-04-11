@@ -15,6 +15,7 @@ typedef struct
     int is_running; // 读线程是否正在运行
     int (*post_read)(char *data, int len); // 读取到串口数据后的后置处理函数（蓝牙数据=》message）
     int (*pre_write)(char *data, int len); // 对向串口写入的数据的前置处理函数（message=》蓝牙数据）
+    long last_write_time; // 上次向串口写入数据的时间
 } Device;
 
 
