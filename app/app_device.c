@@ -71,7 +71,7 @@ static void *read_thread_fun(void *arg)
         // 从串口文件中读取数据   蓝牙数据
         char data_buf[128];
         ssize_t data_len = read(device->fd, data_buf, sizeof(data_buf));
-        log_debug("------: %ld", data_len);
+        // log_debug("------: %ld", data_len);
         // 将蓝牙数据转换为字符数组Message
         if (data_len > 0 && device->post_read)
         {
