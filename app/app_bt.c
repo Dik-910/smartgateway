@@ -61,10 +61,86 @@ int app_bt_preWrite(char *data, int data_len)
     return blue_len;
 }
 
+static char read_buf[1024]; // 缓存读取的蓝牙数据
+static int read_len = 0; // 已读取数据的长度
+static char fixed_header[2] = {0xf1, 0xdd};  // 固定的开头
+
+// 删除缓存中指定长度的数据
+static void remove_data(int len)
+{
+    memmove(read_buf, read_buf+len, read_len-len);
+    read_len -= len;  
+}
+
  /**
   * 蓝牙数据的读后处理函数
+接收方得到数据（3 + [2]）：f1 dd 07 23 23 ff ff 41 42 43
+    f1 dd : 固定的头部
+    07： 之后数据的长度（5-16之间） 
+    23 23：对端（发送方）的MADDR
+    ff ff: 我的MADDR或ffff(群发)
+    41 42 43：发送的数据 
+处理后的数据格式：conn_type id_len msg_len id msg
   */
 int app_bt_postRead(char *data, int data_len)
 {
+    // 将当前数据添加到缓存中
+    memcpy(read_buf+read_len, data, data_len);
+    read_len += data_len;
     
+    // 如果当前已读数据的长度小8, 肯定还没有读取到完整的蓝牙数据，直接返回0
+    if (read_len < 8)
+    {
+        log_debug("当前读取的还不是完整的蓝牙数据(小于8字节)，继续读取");
+        return 0;
+    }
+
+    // 遍历查找完整的蓝牙数据
+    int i;
+    for(i=0;i<read_len-7;i++)
+    {
+        // 查找开头fixed_header
+        if (memcmp(fixed_header, read_buf+i, 2)==0)
+        {
+            // i之前的数据都无效数据，删除它们
+            if (i>0)
+            {
+                remove_data(i);
+                // 如果缓存数据长度小于8，继续读取
+                if (read_len < 8)
+                {
+                    log_debug("当前读取的还不是完整的蓝牙数据2(小于8字节)，继续读取");
+                    return 0;
+                }
+            }
+
+            // f1 dd 07 23 23 ff ff 41 42 43
+            // 有8位不代表当前这个蓝牙数据是完整的
+            int blue_len = 3 + read_buf[2];
+            if (read_len < blue_len)
+            {
+                log_debug("当前已读取的蓝牙数据还不完整，继续读取");
+                return 0;
+            }
+
+            // 根据缓存中蓝牙数据生成字符数组消息
+            memset(data, 0, data_len);
+            data[0] = 1; // conn_type
+            data[1] = 2; // id_len
+            data[2] = blue_len - 7; // msg_len
+            memcpy(data+3, read_buf+3, 2); // id
+            memcpy(data+5, read_buf+7, data[2]); // msg
+
+            // 删除缓存中已处理的蓝牙数据
+            remove_data(blue_len);
+
+            // 返回消息的长度
+            return data[2] + 5;
+        }
+    }
+
+    // 遍历的数据都是无效数据，删除它们
+    remove_data(i);
+
+    return 0;
 }
