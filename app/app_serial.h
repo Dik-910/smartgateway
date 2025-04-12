@@ -55,5 +55,9 @@ int app_serial_setRaw(Device *device);
  */
 int app_serial_init(Device *device);
 
+/**
+ * 刷新让设置属性生效
+ */
+int app_serial_flush(Device *device);
 
 #endif // __APP_SERIAL_H

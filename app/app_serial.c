@@ -140,7 +140,7 @@ int app_serial_init(Device *device)
     app_serial_setBaudRate(device, BR_9600);
     app_serial_setParity(device, Parity_NONE);
     app_serial_setStopBits(device, SB_1);
-    app_serial_setBlock(device, 0);
+    // app_serial_setBlock(device, 0);
     app_serial_setRaw(device);
 
     // 刷新生效
@@ -153,4 +153,12 @@ int app_serial_init(Device *device)
     log_debug("串口初始化成功");
     
     return 0;
+}
+
+/**
+ * 刷新让设置属性生效
+ */
+int app_serial_flush(Device *device)
+{
+    return tcflush(device->fd, TCIOFLUSH);
 }
