@@ -28,32 +28,32 @@ typedef enum
 /**
  * 设置波特率
  */
-app_serial_setBaudRate(Device *device, BaudRate baudRate);
+int app_serial_setBaudRate(Device *device, BaudRate baudRate);
 
 /**
  * 设置校验位
  */
-app_serial_setParity(Device *device, Parity parity);
+int app_serial_setParity(Device *device, Parity parity);
 
 /**
  * 设置停止位
  */
-app_serial_setStopBits(Device *device, StopBits stopBits);
+int app_serial_setStopBits(Device *device, StopBits stopBits);
 
 /**
  * 设置是否是阻塞模式
  */
-app_serial_setBlock(Device *device, int is_block);
+int app_serial_setBlock(Device *device, int is_block);
 
 /**
  * 设置为原始模式
  */
-app_serial_setRaw(Device *device);
+int app_serial_setRaw(Device *device);
 
 /**
  * 初始化
  */
-app_serial_init(Device *device);
+int app_serial_init(Device *device);
 
 
 #endif // __APP_SERIAL_H
