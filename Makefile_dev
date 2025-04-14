@@ -65,3 +65,9 @@ ota_http_test: test/ota_http_test.c $(ota_http) $(log)
 	-$(CC) $^ -o $@ -Iapp -Iota -I thirdparty -lcurl
 	-./$@
 	-rm $@
+
+ota_version:= ota/ota_version.c ota/ota_version.h
+ota_version_test: test/ota_version_test.c $(ota_version) $(json) $(ota_http) $(log)
+	-$(CC) $^ -o $@ -Iapp -Iota -I thirdparty -lcurl -lcrypto
+	-./$@
+	-rm $@
