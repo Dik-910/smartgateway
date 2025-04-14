@@ -28,6 +28,7 @@ static int init_bt(Device *device)
         // 等待蓝牙重启完成
         sleep(2);
     }
+    
     // 将串口波特率设置为115200
     app_serial_setBaudRate(device, BR_115200);
     app_serial_flush(device);

@@ -90,7 +90,7 @@ int app_mqtt_send(char *json)
 {
     // 指定要发送的数据
     pubmsg.payload = json;
-    pubmsg.payloadlen = strlen(json) + 1;
+    pubmsg.payloadlen = strlen(json);
     pubmsg.qos = QOS;
 
     if (MQTTClient_publishMessage(client, TOPIC_G2R, &pubmsg, NULL) != MQTTCLIENT_SUCCESS)

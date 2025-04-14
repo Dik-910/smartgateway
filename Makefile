@@ -1,61 +1,56 @@
-CC:=gcc
-CFLAGS := -g -O0 -Wall
+CC:=$(CROSS_COMPILE)gcc
 
-log:=thirdparty/log/log.h thirdparty/log/log.c
-log_test: test/log_test.c $(log)
-	-gcc $^ -o $@ -Ithirdparty
-	-./$@
-	-rm $@
-json:=thirdparty/cJSON/cJSON.h thirdparty/cJSON/cJSON.c
-json_test: test/json_test.c $(json) $(log)
-	-$(CC) $(CFLAGS) $^ -o $@ -I thirdparty
-#	-./$@
-#	-rm $@
+BOARD_DIR := $(shell pwd)/
+PEER := root@192.168.11.93
 
-app_common:=app/app_common.h app/app_common.c
-app_common_test: test/app_common_test.c $(app_common) $(log)
-	-$(CC) $^ -o $@ -Iapp -Ithirdparty
-	-./$@
-	-rm $@
+CFLAGS += -Wall -Wextra
 
-app_message:=app/app_message.h app/app_message.c
-app_message_test: test/app_message_test.c $(app_message) $(app_common) $(log) $(json)
-	-$(CC) $^ -o $@ -Iapp -Ithirdparty
-	-./$@
-	-rm $@
+CFLAGS += -I.
+CFLAGS += -Ithirdparty
+CFLAGS += -Iapp
+CFLAGS += -Idaemon
+CFLAGS += -Iota
 
-# $^: 依赖列表
-# $@: 目标名
-# -I: 给gcc配置包含的查看路径
-# -l: 指定用到的下载的库
+ifdef SYSROOT
+	CFLAGS += --sysroot=$(SYSROOT)
+endif
 
+LDLIBS += -lpaho-mqtt3c
+LDLIBS += -lcurl
+LDLIBS += -lcrypto
 
-mqtt_test: test/mqtt_test.c
-	-$(CC) $^ -o $@ -lpaho-mqtt3c
-	-./$@
-	-rm $@
+SRC += $(shell find app -name "*.c"	-type f)
+SRC += $(shell find daemon -name "*.c"	-type f)
+SRC += $(shell find ota -name "*.c"	-type f)
+SRC += $(shell find thirdparty -name "*.c"	-type f)
 
-app_mqtt:=app/app_mqtt.h app/app_mqtt.c
-app_mqtt_test: test/app_mqtt_test.c $(app_mqtt) $(log)
-	-$(CC) $^ -o $@ -Iapp -Ithirdparty -lpaho-mqtt3c
-	-./$@
-	-rm $@
+OBJ := $(SRC:.c=.o)
 
-app_pool:=app/app_pool.h app/app_pool.c
-app_pool_test: test/app_pool_test.c $(app_pool) $(log)
-	-$(CC) $^ -o $@ -Iapp -Ithirdparty
-	-./$@
-	-rm $@
+TARGET := gateway
 
-app_buffer:=app/app_buffer.h app/app_buffer.c
-app_buffer_test: test/app_buffer_test.c $(app_buffer) $(log)
-	-$(CC) $^ -o $@ -Iapp -Ithirdparty
-	-./$@
-	-rm $@
+.PHONY: all, clean
 
-app_device:=app/app_device.c app/app_device.h
-app_bt:=app/app_bt.h app/app_bt.c
-app_device_test: test/app_device_test.c $(app_device) $(app_bt) $(log) $(app_buffer) $(app_message) $(app_common) $(json) $(app_pool) $(app_mqtt) 
-	-$(CC) -o $@ $^ -Ithirdparty -Iapp -lpaho-mqtt3c
-	-./$@
-	-rm $@
+all: $(TARGET)
+
+clean:
+	@-rm -f $(TARGET) $(OBJ) main.o
+
+$(TARGET): main.o $(OBJ)
+	@-$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
+
+cross-compile:
+	@CROSS_COMPILE=$(BOARD_DIR)/toolchain/bin/arm-linux-gnueabihf- \
+	 SYSROOT=$(BOARD_DIR)/sysroot \
+	 make -j16
+	@scp -O $(TARGET) $(PEER):/usr/bin/$(TARGET)
+
+#cross-init:
+#	@scp -O init/S99gateway $(PEER):/etc/init.d/S99gateway
+
+%.o: %.c
+	@-$(CC) $(CFLAGS) -c $^ -o $@
+
+%_test: test/%_test.o $(OBJ)
+	@-$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
+	@-./$@
+	@-rm $@ $^

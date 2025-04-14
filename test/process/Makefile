@@ -18,3 +18,8 @@ waitpid: 03_waitpid.c
 	-./$@
 	-rm $@
 
+signal: 04_signal.c
+	-$(CC) $^ -o $@
+	-./$@
+	-rm $@
+
