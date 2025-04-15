@@ -44,8 +44,8 @@ cross-compile:
 	 make -j16
 	@scp -O $(TARGET) $(PEER):/usr/bin/$(TARGET)
 
-#cross-init:
-#	@scp -O init/S99gateway $(PEER):/etc/init.d/S99gateway
+cross-init:
+	@scp -O init/S99gateway $(PEER):/etc/init.d/S99gateway
 
 %.o: %.c
 	@-$(CC) $(CFLAGS) -c $^ -o $@

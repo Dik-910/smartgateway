@@ -4,6 +4,7 @@
 #include <sys/types.h>
 
 #define MAX_FAIL_COUNT 10
+#define EXE_PATH "/usr/bin/gateway"
 
 // 被守护的子进程结构体
 typedef struct

@@ -55,9 +55,8 @@ int daemon_sub_process_checkStart(SubProcess *sp)
     { // 子进程
         // sp->pid = getpid();
         // 执行sp所对应的程序模块app/ota
-        char *path = "/home/zxf/桌面/gateway/gateway_test";
-        char *argv[] = {path, sp->cmd_param, NULL};
-        execve(path, argv, NULL);
+        char *argv[] = {EXE_PATH, sp->cmd_param, NULL};
+        execve(EXE_PATH, argv, NULL);
         // 如果找不到对应的程序模块执行，直接退出当前进程
         _exit(EXIT_FAILURE);
     }

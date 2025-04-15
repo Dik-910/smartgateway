@@ -2,7 +2,9 @@
 #define __OTA_HTTP_H
 #define OTA_URL_FILEINFO "http://192.168.11.91:8000/fileinfo.json" // 版本信息地址
 #define OTA_URL_DOWNLOAD "http://192.168.11.91:8000/download/gateway" // 下载地址
-#define OTA_LOCAL_FILE_PATH "/home/zxf/gateway.update"
+// #define OTA_LOCAL_FILE_PATH "/home/zxf/gateway.update"
+#define OTA_LOCAL_FILE_PATH "/root/gateway.update"
+
 
 /**
  * 请求指定url获取json数据
