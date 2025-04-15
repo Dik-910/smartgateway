@@ -84,7 +84,9 @@ int ota_version_checkUpdate()
     log_debug("当前版本号：%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 
     // 比较本地版本号和远程版本号， 如果本地不小于远程，则不更新，直接结束
-    if (VERSION_MAJOR > major || (major == VERSION_MAJOR && VERSION_MINOR > minor) || (minor == VERSION_MINOR && VERSION_PATCH >= patch))
+    if (VERSION_MAJOR > major 
+        || (major == VERSION_MAJOR && VERSION_MINOR > minor) 
+        || (major == VERSION_MAJOR && minor == VERSION_MINOR && VERSION_PATCH >= patch))
     {
         log_debug("当前已经是最新版本，无需更新");
         return 0;
