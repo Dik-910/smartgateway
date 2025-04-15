@@ -50,8 +50,10 @@ int daemon_sub_process_checkStart(SubProcess *sp)
 
     // 启动子进程，并在子进程中执行指定程序（未启动过 / 启动过但结束了）
     sp->pid = fork();
+    // pid_t pid = fork();
     if (sp->pid==0)
     { // 子进程
+        // sp->pid = getpid();
         // 执行sp所对应的程序模块app/ota
         char *path = "/home/zxf/桌面/gateway/gateway_test";
         char *argv[] = {path, sp->cmd_param, NULL};
@@ -66,4 +68,10 @@ int daemon_sub_process_checkStart(SubProcess *sp)
 /**
  * 停止子进程
  */
-void daemon_sub_process_stop(SubProcess *sp);
+void daemon_sub_process_stop(SubProcess *sp)
+{
+    // 根据pid杀死子进程, 并发送SIGTERM信号
+    kill(sp->pid, SIGTERM);
+    waitpid(sp->pid, NULL, 0);
+    free(sp);
+}
