@@ -13,7 +13,7 @@
 
 static Device *device = NULL; // 整个应用中只有一个Device对象
 /**
- * 初始化
+ * 初始化Device对象
  */
 Device *app_device_init(char *filename)
 {
