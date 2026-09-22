@@ -8,3 +8,5 @@
 output
 toolchain
 sysroot
+*.workbuddy
+*.workbuddy.json
