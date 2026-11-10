@@ -1,6 +1,14 @@
+#define _GNU_SOURCE
 #include "app_can.h"
 #include "log/log.h"
 #include <string.h>
+#include <unistd.h>
+#include <errno.h>
+#include <net/if.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <linux/can/raw.h>
+#include <linux/can/error.h>
 
 /**
  * CAN 帧转字符数组消息
@@ -129,4 +137,220 @@ int app_can_chars2Frame(const char *chars, int chars_len, struct can_frame *fram
     }
 
     return 0;
+}
+
+/**
+ * CAN 读线程
+ *
+ * 和串口读线程的区别：串口 read 回来的是一段字节流，可能半帧也可能三帧半，
+ * 所以 app_bt.c 里必须自己找 f1dd 头、读长度、拼包；CAN 的 read 每次
+ * 必然返回恰好一个完整的 struct can_frame，边界由内核保证，不需要拼包。
+ */
+static void *can_read_thread_fun(void *arg)
+{
+    CanDevice *can = (CanDevice *)arg;
+    struct can_frame frame;
+    char chars[CAN_CHARS_MAX_LEN];
+
+    while (can->is_running)
+    {
+        memset(&frame, 0, sizeof(frame));
+        int n = read(can->fd, &frame, sizeof(frame));
+        if (n < 0)
+        {
+            // 被信号打断不是错误，重试
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            log_error("读取CAN帧失败：%s", strerror(errno));
+            break;
+        }
+        // 一次 read 要么是一整帧，要么什么都没有，长度不对说明有严重问题
+        if (n != (int)sizeof(struct can_frame))
+        {
+            log_error("读取CAN帧长度异常：%d（期望 %d）", n, (int)sizeof(struct can_frame));
+            continue;
+        }
+
+        // 错误帧：Bus Off / 错误被动 等总线故障都由它通知，不是业务数据
+        if (frame.can_id & CAN_ERR_FLAG)
+        {
+            log_error("收到CAN错误帧：0x%08X", (unsigned int)frame.can_id);
+            continue;
+        }
+
+        // 远程帧只有 ID 没有数据场，网关不做 RTR 转发
+        if (frame.can_id & CAN_RTR_FLAG)
+        {
+            log_debug("忽略CAN远程帧");
+            continue;
+        }
+
+        int len = app_can_frame2Chars(&frame, chars, sizeof(chars));
+        if (len <= 0)
+        {
+            continue;
+        }
+        if (can->on_frame != NULL)
+        {
+            can->on_frame(chars, len);
+        }
+    }
+
+    log_debug("CAN读线程退出");
+    return NULL;
+}
+
+/**
+ * 初始化 CAN 设备
+ *
+ * 四步固定流程（任何 SocketCAN 程序都一样）：
+ *   1. socket(PF_CAN, SOCK_RAW, CAN_RAW)
+ *   2. ioctl(SIOCGIFINDEX) 把接口名换成内核的接口索引
+ *   3. bind 到该接口
+ *   4. 按需 setsockopt（滤波器、错误帧掩码等）
+ */
+int app_can_init(CanDevice *can, const char *ifname, int (*on_frame)(char *chars, int chars_len))
+{
+    if (can == NULL || ifname == NULL)
+    {
+        log_error("CAN初始化：入参为空");
+        return -1;
+    }
+
+    memset(can, 0, sizeof(CanDevice));
+    can->fd = -1;
+    can->on_frame = on_frame;
+    strncpy(can->ifname, ifname, CAN_IFNAME_LEN - 1);
+
+    // 1. 创建原始 CAN socket
+    int fd = socket(PF_CAN, SOCK_RAW, CAN_RAW);
+    if (fd < 0)
+    {
+        log_error("创建CAN socket失败：%s", strerror(errno));
+        return -1;
+    }
+
+    // 2. 接口名换接口索引
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name) - 1);
+    if (ioctl(fd, SIOCGIFINDEX, &ifr) < 0)
+    {
+        log_error("获取CAN接口索引失败(%s)：%s", ifname, strerror(errno));
+        close(fd);
+        return -1;
+    }
+
+    // 3. 绑定到该接口
+    struct sockaddr_can addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.can_family = AF_CAN;
+    addr.can_ifindex = ifr.ifr_ifindex;
+    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+    {
+        log_error("绑定CAN接口失败(%s)：%s", ifname, strerror(errno));
+        close(fd);
+        return -1;
+    }
+
+    // 4. 订阅错误帧。默认 RAW socket 是不收错误帧的，
+    //    不订阅就永远不知道 Bus Off 发生过。
+    //    失败不致命：个别驱动不支持，此时只是收不到总线故障事件。
+    can_err_mask_t err_mask = CAN_ERR_MASK;
+    if (setsockopt(fd, SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &err_mask, sizeof(err_mask)) < 0)
+    {
+        log_error("订阅CAN错误帧失败（不影响数据收发）：%s", strerror(errno));
+    }
+
+    can->fd = fd;
+    log_debug("CAN接口 %s 初始化成功", ifname);
+
+    return 0;
+}
+
+/**
+ * 启动 CAN 读线程
+ */
+int app_can_start(CanDevice *can)
+{
+    if (can == NULL || can->fd < 0)
+    {
+        log_error("启动CAN失败：设备未初始化");
+        return -1;
+    }
+    if (can->is_running)
+    {
+        log_debug("CAN读线程已经在运行");
+        return 0;
+    }
+
+    can->is_running = 1;
+    if (pthread_create(&can->read_thread, NULL, can_read_thread_fun, can) != 0)
+    {
+        log_error("创建CAN读线程失败");
+        can->is_running = 0;
+        return -1;
+    }
+
+    log_debug("CAN读线程已启动");
+    return 0;
+}
+
+/**
+ * 发送一帧 CAN 消息
+ */
+int app_can_send(CanDevice *can, const char *chars, int chars_len)
+{
+    if (can == NULL || can->fd < 0)
+    {
+        log_error("CAN发送失败：设备未初始化");
+        return -1;
+    }
+
+    struct can_frame frame;
+    if (app_can_chars2Frame(chars, chars_len, &frame) != 0)
+    {
+        return -1;
+    }
+
+    // 一次 write 就是整帧入队，内核不会把半帧放到总线上；
+    // 但有硬件邮箱（通常 3 个）满了会阻塞或返回 EAGAIN，这里用阻塞写
+    int n = write(can->fd, &frame, sizeof(frame));
+    if (n != (int)sizeof(struct can_frame))
+    {
+        log_error("CAN发送失败：%s", strerror(errno));
+        return -1;
+    }
+
+    return 0;
+}
+
+/**
+ * 关闭 CAN 设备
+ */
+void app_can_close(CanDevice *can)
+{
+    if (can == NULL)
+    {
+        return;
+    }
+
+    can->is_running = 0;
+    if (can->read_thread != 0)
+    {
+        // read 是取消点，pthread_cancel 能让阻塞在这里的线程退出
+        pthread_cancel(can->read_thread);
+        pthread_join(can->read_thread, NULL);
+        can->read_thread = 0;
+    }
+
+    if (can->fd >= 0)
+    {
+        close(can->fd);
+        can->fd = -1;
+    }
+
+    log_debug("CAN接口已关闭");
 }
