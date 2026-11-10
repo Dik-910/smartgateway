@@ -10,3 +10,14 @@ toolchain
 sysroot
 *.workbuddy
 *.workbuddy.json
+
+# 编译产物（可执行文件不入库）
+/gateway
+/gateway_test
+/json_test
+/ota_version_test
+/test/make/main
+
+# 串口设备模拟文件与运行日志
+/serial_file
+*.log

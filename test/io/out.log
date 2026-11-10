@@ -1,6 +1,0 @@
-stdin读取输入：aa
-
-stdout输出到控制台 
-STDOUT_FILENO输出到控制台 
-STDIN_FILENO读取输入:bb
-�,len=3
