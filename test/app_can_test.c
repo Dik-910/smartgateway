@@ -1,4 +1,5 @@
 #include "app_can.h"
+#include <linux/can/error.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -149,12 +150,52 @@ static void test_invalid(void)
     check(app_can_frame2Chars(&big, out, 4) == -1, "容器不足被拒绝");
 }
 
+// 错误帧上报：Bus Off 与带 TEC/REC 计数的错误帧
+static void test_error_frame(void)
+{
+    printf("错误帧上报\n");
+
+    char chars[CAN_CHARS_MAX_LEN];
+
+    // Bus Off：节点 TEC 超过 255，已经脱离总线
+    struct can_frame busoff;
+    memset(&busoff, 0, sizeof(busoff));
+    busoff.can_id = CAN_ERR_FLAG | CAN_ERR_BUSOFF;
+    int len = app_can_err2Chars(&busoff, chars, sizeof(chars));
+    check(len == 9, "Bus Off 消息长度 = 3 + 2 + 4 = 9");
+    check((unsigned char)chars[0] == CONN_TYPE_CAN_EVT, "conn_type = 3（总线事件）");
+    check((unsigned char)chars[3] == 0x00 && (unsigned char)chars[4] == 0x40,
+          "事件码 = 0x0040（CAN_ERR_BUSOFF）");
+    // TEC 2 字节大端：0x0100 = 256
+    check((unsigned char)chars[5] == 0x01 && (unsigned char)chars[6] == 0x00,
+          "TEC 上报为 0x0100 = 256（超过 255，一字节装不下）");
+
+    // 带计数器的普通总线错误：CAN_ERR_CNT 置位时 data[6]=TEC data[7]=REC
+    struct can_frame buserr;
+    memset(&buserr, 0, sizeof(buserr));
+    buserr.can_id = CAN_ERR_FLAG | CAN_ERR_CNT | CAN_ERR_CRTL;
+    buserr.data[6] = 130; // 已进入错误被动态（TEC > 127）
+    buserr.data[7] = 5;
+    check(app_can_err2Chars(&buserr, chars, sizeof(chars)) == 9, "带计数的错误帧转换成功");
+    check((unsigned char)chars[5] == 0 && (unsigned char)chars[6] == 130,
+          "TEC 还原 = 130（错误被动）");
+    check((unsigned char)chars[7] == 0 && (unsigned char)chars[8] == 5,
+          "REC 还原 = 5");
+
+    // 普通数据帧不能当错误帧上报
+    struct can_frame data;
+    memset(&data, 0, sizeof(data));
+    data.can_id = 0x123;
+    check(app_can_err2Chars(&data, chars, sizeof(chars)) == -1, "普通数据帧被拒绝");
+}
+
 int main(int argc, char const *argv[])
 {
     test_std_frame();
     test_ext_frame();
     test_empty_data();
     test_invalid();
+    test_error_frame();
 
     printf("\n结果：%d 通过，%d 失败\n", passed, failed);
     return failed == 0 ? 0 : 1;

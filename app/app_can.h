@@ -8,9 +8,11 @@
  * 字符数组消息（conn_type + id_len + msg_len + id + msg）中，
  * conn_type 用来区分消息来自哪条链路：
  *   1 = 蓝牙 Mesh（app_bt.c）
- *   2 = CAN（app_can.c）
+ *   2 = CAN 业务数据帧（app_can.c）
+ *   3 = CAN 总线事件（Bus Off / 错误被动 / 控制器重启等，不是业务数据）
  */
 #define CONN_TYPE_CAN 2
+#define CONN_TYPE_CAN_EVT 3
 
 // 标准帧的 11 位 ID 占 2 字节，扩展帧的 29 位 ID 占 4 字节
 #define CAN_STD_ID_LEN 2
@@ -64,6 +66,22 @@ int app_can_frame2Chars(const struct can_frame *frame, char *out, int out_size);
  * @return 0 成功，-1 失败
  */
 int app_can_chars2Frame(const char *chars, int chars_len, struct can_frame *frame);
+
+/**
+ * @brief CAN 错误帧转字符数组消息（conn_type=3）
+ *
+ * 错误帧不是业务数据，它通知的是总线故障：
+ *   CAN_ERR_BUSOFF     节点已 Bus Off（TEC > 255，完全脱离总线）
+ *   CAN_ERR_BUSERROR   检测到总线错误
+ *   CAN_ERR_RESTARTED  控制器已重启，恢复通信
+ *   CAN_ERR_CNT        带 TEC/REC 计数（data[6]=TEC, data[7]=REC）
+ *
+ * 输出格式：[conn_type=3][id_len=2][msg_len=4][事件码 2 字节][TEC 2 字节][REC 2 字节]
+ * Bus Off 时 TEC 必然大于 255，所以 TEC/REC 都按 2 字节大端上报。
+ *
+ * @return 实际写入的字符数组长度，-1 表示失败
+ */
+int app_can_err2Chars(const struct can_frame *frame, char *out, int out_size);
 
 /**
  * @brief 初始化 CAN 设备：创建 socket、绑定接口、订阅错误帧

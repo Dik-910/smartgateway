@@ -140,6 +140,69 @@ int app_can_chars2Frame(const char *chars, int chars_len, struct can_frame *fram
 }
 
 /**
+ * CAN 错误帧转字符数组消息
+ *
+ * 错误帧的 can_id = CAN_ERR_FLAG | 错误类别位，低 29 位一个 bit 表示一类故障。
+ * 一个错误帧可以同时带多个类别位（比如 Bus Off 时同时带 CNT）。
+ *
+ * 为什么 TEC/REC 按 2 字节上报：Bus Off 的门槛是 TEC > 255，一个字节装不下，
+ * 而 CAN_ERR_CNT 给的 data[6]/data[7] 只有一个字节、到 255 就封顶了，
+ * 所以 Bus Off 时直接按 256 上报。
+ */
+int app_can_err2Chars(const struct can_frame *frame, char *out, int out_size)
+{
+    if (frame == NULL || out == NULL)
+    {
+        log_error("CAN错误帧转消息：入参为空");
+        return -1;
+    }
+    if ((frame->can_id & CAN_ERR_FLAG) == 0)
+    {
+        log_error("CAN错误帧转消息：这不是错误帧");
+        return -1;
+    }
+
+    // 低 29 位是错误类别位
+    unsigned int event = (unsigned int)frame->can_id & CAN_ERR_MASK;
+
+    // CAN_ERR_CNT 置位时才有 TEC/REC
+    unsigned int tec = 0;
+    unsigned int rec = 0;
+    if (event & CAN_ERR_CNT)
+    {
+        tec = frame->data[6];
+        rec = frame->data[7];
+    }
+    // Bus Off = TEC 超过 255，取出节点的错误计数器必然到顶
+    if (event & CAN_ERR_BUSOFF)
+    {
+        tec = 256;
+    }
+
+    int need = 3 + CAN_STD_ID_LEN + 4;
+    if (out_size < need)
+    {
+        log_error("CAN错误帧转消息：容器不足（需 %d，实 %d）", need, out_size);
+        return -1;
+    }
+
+    out[0] = CONN_TYPE_CAN_EVT;
+    out[1] = CAN_STD_ID_LEN;
+    out[2] = 4;
+    // 事件码 2 字节大端
+    out[3] = (char)((event >> 8) & 0xFF);
+    out[4] = (char)(event & 0xFF);
+    // TEC 2 字节大端
+    out[5] = (char)((tec >> 8) & 0xFF);
+    out[6] = (char)(tec & 0xFF);
+    // REC 2 字节大端
+    out[7] = (char)((rec >> 8) & 0xFF);
+    out[8] = (char)(rec & 0xFF);
+
+    return need;
+}
+
+/**
  * CAN 读线程
  *
  * 和串口读线程的区别：串口 read 回来的是一段字节流，可能半帧也可能三帧半，
@@ -173,10 +236,29 @@ static void *can_read_thread_fun(void *arg)
             continue;
         }
 
-        // 错误帧：Bus Off / 错误被动 等总线故障都由它通知，不是业务数据
+        // 错误帧：Bus Off / 错误被动 / 控制器重启 等总线故障都由它通知。
+        // 这不是业务数据，但必须上报 —— 否则上位机永远不知道总线出过事。
         if (frame.can_id & CAN_ERR_FLAG)
         {
-            log_error("收到CAN错误帧：0x%08X", (unsigned int)frame.can_id);
+            unsigned int event = (unsigned int)frame.can_id & CAN_ERR_MASK;
+            if (event & CAN_ERR_BUSOFF)
+            {
+                log_error("CAN总线故障：Bus Off，节点已脱离总线（TEC > 255）");
+            }
+            else if (event & CAN_ERR_RESTARTED)
+            {
+                log_debug("CAN控制器已重启，总线恢复通信");
+            }
+            else
+            {
+                log_error("CAN总线故障：事件码 0x%08X", event);
+            }
+
+            int evt_len = app_can_err2Chars(&frame, chars, sizeof(chars));
+            if (evt_len > 0 && can->on_frame != NULL)
+            {
+                can->on_frame(chars, evt_len);
+            }
             continue;
         }
 
