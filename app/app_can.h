@@ -25,6 +25,9 @@
 // 网络接口名的最大长度，与内核 IFNAMSIZ 一致
 #define CAN_IFNAME_LEN 16
 
+// 默认的 CAN 接口名。测试环境没有真实硬件时把它改成 "vcan0"
+#define CAN_DEFAULT_IFNAME "can0"
+
 // CAN 设备：一个 socket + 一个独立读线程
 typedef struct
 {
