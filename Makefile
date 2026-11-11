@@ -50,7 +50,14 @@ cross-init:
 %.o: %.c
 	@-$(CC) $(CFLAGS) -c $^ -o $@
 
-%_test: test/%_test.o $(OBJ)
-	@-$(CC) $(CFLAGS) $^ -o $@ $(LDLIBS)
-	@-./$@
-	@-rm $@ $^
+# ---- 单元测试 ----
+# 纯逻辑单测只链「被测模块 + 它依赖的通用模块」，不能链 $(OBJ)：
+# $(OBJ) 里含着 ota_http.o（要 libcurl）和 ota_version.o（要 openssl），
+# 单测一个也用不到，却会因为缺 dev 包而链接失败，把真正的测试结果盖掉。
+CAN_UNIT_DEPS := app/app_can.c thirdparty/log/log.c
+
+# 去掉了原来的 @- 前缀：加 @- 会让编译失败、运行失败统统被 make 吞掉，
+# 结果「测试压根没跑起来」和「测试 34 项全过」在终端上长得一模一样。
+%_test: test/%_test.c $(CAN_UNIT_DEPS)
+	$(CC) $(CFLAGS) $^ -o $@
+	./$@

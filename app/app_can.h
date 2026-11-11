@@ -2,7 +2,22 @@
 #define __APP_CAN_H
 
 #include <linux/can.h>
+#include <linux/can/error.h>
 #include <pthread.h>
+
+/*
+ * CAN_ERR_CNT 是 Linux 5.13 才加进 UAPI 的错误类别位（低 29 位里的 0x200），
+ * 作用是告诉用户态「这帧里带了 TEC/REC 计数」。
+ * 但不少发行版的 linux-libc-dev 还停在旧版本，头文件里查不到这个宏
+ * （本机 6.8 内核 + 旧 error.h 就是这种情况），会导致 undeclared 编译错误。
+ *
+ * 处理方式：宏缺失时自己补一个同值定义，让编译器过关。
+ * 注意这只解决编译期；运行期内核是否真的上报该标志位，取决于内核版本（>= 5.13）。
+ * 放在公共头文件而不是某个 .c 里，是因为 test/app_can_test.c 也要用。
+ */
+#ifndef CAN_ERR_CNT
+#define CAN_ERR_CNT 0x00000200U
+#endif
 
 /**
  * 字符数组消息（conn_type + id_len + msg_len + id + msg）中，

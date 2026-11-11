@@ -18,6 +18,9 @@ sysroot
 /ota_version_test
 /test/make/main
 
+# 单元测试产物（make app_can_test 会在根目录生成）
+/app_can_test
+
 # 串口设备模拟文件与运行日志
 /serial_file
 *.log
